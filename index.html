@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8" />
+    <title>Échelle interactive corrigée</title>
+    <style>
+        html, body {
+            margin: 0;
+            height: 100%;
+            font-family: sans-serif;
+            background: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            padding: 32px;
+            box-sizing: border-box;
+            gap: 90px;
+        }
+
+        h1 {
+            font-size: 48px;
+            color: #333;
+            margin-bottom: 40px;
+            text-shadow: 2px 2px #ffd966;
+        }
+
+        button {
+            margin-bottom: 16px;
+
+        }
+        .big-button {
+            width: 200px;
+            height: 100px;
+            background: linear-gradient(to bottom, #ffcc00, #ff9900);
+            border: none;
+            border-radius: 25px;
+            font-size: 24px;
+            font-weight: bold;
+            color: white;
+            cursor: pointer;
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+            transition: transform 0.1s ease-in-out;
+            font-family: 'Roboto', sans-serif;
+        }
+
+        .big-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.25);
+        }
+
+        #rulerWrapper {
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+            width: 100%;
+            box-sizing: border-box;
+            flex-direction: column;
+        }
+        #rulerContainer {
+            position: relative;
+            width: 100%;
+            max-width: 900px;
+            height: 100px; /* plus haut pour labels */
+            box-sizing: border-box;
+            user-select: none;
+        }
+        /* Barre des traits */
+        #rulerLines {
+            display: flex;
+            height: 50px;
+            border-bottom: 1px solid #aaa;
+            position: relative;
+        }
+        #rulerLines > div {
+            flex: 1;
+            border-left: 2px solid #aaa;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        #rulerLines > div:last-child {
+            border-right: 2px solid #aaa;
+        }
+        #rulerLines > div:hover {
+            background: rgba(0,0,255,0.1);
+        }
+        /* Labels */
+        #labels {
+            display: flex;
+            height: 50px;
+            margin-top: 4px;
+        }
+        #labels > span {
+            flex: 0 0 calc(100% / 10); /* 10 intervals => 11 traits, labels aligned with traits */
+            position: relative;
+            left: -10px;
+            width: 0;
+            text-align: left;
+            font-size: 12px;
+            white-space: nowrap;
+            user-select: none;
+        }
+        #labels > span:first-child {
+            left: 0; /* Premier label pas décalé */
+        }
+
+        .grad {
+            width: 10%;
+            height: 50%;
+            border-right: 1px solid #aaa;
+        }
+        .zone>.grad:last-child {
+            border-right: none;
+        }
+
+        .zone {
+            display: flex;
+            align-items: end;
+        }
+    </style>
+</head>
+<body>
+<h1>Échelle interactive</h1>
+<button class="big-button" id="backButton">Retour</button>
+<div id="rulerWrapper">
+    <div id="rulerContainer">
+        <div id="rulerLines"></div>
+        <div id="labels"></div>
+    </div>
+</div>
+
+<script>
+    const rulerLines = document.getElementById("rulerLines");
+    const labels = document.getElementById("labels");
+    const backButton = document.getElementById("backButton");
+
+    let currentMin = 0;
+    let currentMax = 1000;
+    let currentStep = 100;
+    const levels = [];
+
+    function drawRuler(min, max, step) {
+        rulerLines.innerHTML = "";
+        labels.innerHTML = "";
+
+        const backButton = document.getElementById('backButton');
+        if (step === 100) {
+            backButton.style.visibility = "hidden";
+        } else if (step === 10) {
+            backButton.style.visibility = "visible";
+            backButton.textContent = 'Retour aux centaines';
+        } else if (step === 1) {
+            backButton.style.visibility = "visible";
+            backButton.textContent = 'Retour aux dizaines';
+        }
+
+
+        const intervals = (max - min) / step; // ex: 1000/100 = 10
+
+        // Créer 10 zones cliquables entre traits
+        for(let i = 0; i < intervals; i++) {
+            const zone = document.createElement("div");
+            zone.classList.add("zone");
+            if (step === 10 || step === 100) {
+                for (let j = 0; j < 10; j++) {
+                    const grad = document.createElement("div");
+                    grad.classList.add("grad");
+                    zone.appendChild(grad);
+                }
+            }
+            zone.dataset.start = min + i * step;
+            zone.dataset.end = min + (i+1)*step;
+            zone.title = `${zone.dataset.start} - ${zone.dataset.end}`;
+            zone.addEventListener("click", () => {
+                zoomIn(parseInt(zone.dataset.start), parseInt(zone.dataset.end));
+            });
+            rulerLines.appendChild(zone);
+        }
+
+        // Créer 11 traits + labels (de min à max inclus)
+        for(let i = 0; i <= intervals; i++) {
+            const value = min + i * step;
+            const label = document.createElement("span");
+            label.textContent = value;
+            labels.appendChild(label);
+        }
+
+        currentMin = min;
+        currentMax = max;
+        currentStep = step;
+    }
+
+    function zoomIn(min, max) {
+        const range = max - min;
+        if (range <= 1) return;
+
+        levels.push([currentMin, currentMax, currentStep]);
+
+        if (range === 100) {
+            drawRuler(min, max, 10);
+        } else if (range === 10) {
+            drawRuler(min, max, 1);
+        }
+    }
+
+    backButton.addEventListener("click", () => {
+        if (levels.length === 0) return;
+        const [min, max, step] = levels.pop();
+        drawRuler(min, max, step);
+    });
+
+    drawRuler(0, 1000, 100);
+</script>
+</body>
+</html>
